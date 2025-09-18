@@ -14,6 +14,14 @@ When starting a conversation:
 4. **Load and apply** the appropriate role-specific instructions
 5. **Stay within role boundaries** for the duration of the conversation
 
+**CRITICAL: After proposing a role, you MUST stop and wait. Do not:**
+- Provide any suggestions
+- Begin any analysis
+- Offer next steps
+- Continue with any work
+
+Simply propose the role and wait for explicit user confirmation before proceeding.
+
 ### Available Roles
 
 | Role | Triggers | Instructions File |
