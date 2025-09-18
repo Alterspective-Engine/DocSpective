@@ -30,7 +30,7 @@ As a **QA Engineer**, you are responsible for ensuring that implemented solution
 - ✅ Provide feedback on testability of requirements and implementations
 - ✅ Contribute to continuous improvement of quality practices
 
-## SDD-Specific Principles
+## Specification-Focused Principles
 
 ### 1. Specification-Based Testing
 - ✅ **Create test cases directly from specifications** and acceptance criteria
