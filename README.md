@@ -1,87 +1,111 @@
-# DocSpective - Document Analysis and Template Management System
+# DocSpective - Document Analysis & Template Management API
 
-DocSpective is a containerized document processing system that allows you to upload ZIP files containing documents and CSV metadata, automatically storing them in Supabase Storage and linking them through a PostgreSQL database.
+DocSpective is a containerized document processing service built with Fastify and TypeScript. It provides APIs for document analysis, format conversion, and template management with integration capabilities for legal document platforms like ShareDo.
 
-## Purpose and Vision
+## Core Features
 
-The primary purpose of DocSpective is to **convert legacy document templates from .doc/.dot formats to .docx format** and **integrate them with Sharedo**, a legal document management platform. The system serves as a bridge for:
+### 📁 Document Processing
+- **ZIP File Upload** - Upload ZIP archives containing documents and CSV metadata
+- **Format Conversion** - Convert legacy document formats (.doc, .dot) to modern .docx
+- **Batch Processing** - Process multiple documents with associated template metadata
+- **Storage Management** - Automatic organization in Supabase Storage with proper file paths
 
-1. **Document Format Modernization** - Converting older Word formats (.doc, .dot) to modern .docx format
-2. **Metadata Processing** - Parsing CSV files containing template information and business rules
-3. **Storage Management** - Organizing documents in cloud storage with proper categorization
-4. **Sharedo Integration** - Preparing documents for upload and linking within Sharedo's document template system
+### 🔗 ShareDo Integration
+- **Authentication** - OAuth integration with ShareDo platform
+- **Template Sync** - Upload and manage document templates in ShareDo
+- **Participant Management** - Handle participant types and work classifications
+- **Repository Management** - Manage ShareDo repositories and template types
 
-This solution enables law firms and legal organizations to migrate their existing document templates into modern, cloud-based document automation systems.
+### 🛠 API Endpoints
 
-## Architecture Overview
+#### Document Analyser (`/api/analyser/`)
+- `POST /upload` - Upload ZIP files for processing
+- `POST /convert` - Convert documents to DOCX format
+- `GET /registry` - Access template registry and metadata
 
-- **FastifyAPI** - RESTful API with TypeScript and comprehensive Swagger documentation
-- **Supabase** - Self-hosted backend with PostgreSQL database, Storage, and Studio UI
+#### ShareDo Integration (`/api/sharedo/`)
+- `GET /auth` - Authentication status and token management
+- `GET /templates` - Template management and synchronization
+- `GET /participant-types` - Participant type management
+- `GET /work-types` - Work type classifications
+
+## Architecture
+
+- **Fastify API** - High-performance Node.js web framework with TypeScript
+- **Supabase Backend** - Self-hosted PostgreSQL database with Storage and Auth
 - **Docker Compose** - Complete containerized development environment
-- **Automated Processing** - ZIP file extraction, document storage, and metadata linking
+- **Swagger Documentation** - Interactive API documentation at `/documentation`
 
 ## Prerequisites
 
 - **Docker** and **Docker Compose** installed
 - **Git** for cloning the repository
-- **curl** for testing API endpoints (optional)
+- **Node.js** (for local development outside Docker)
 
 ## Quick Start
 
-### 1. Clone and Initialize
+### 1. Environment Setup
 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd DocSpective
 
-# Run the complete initialization script
+# Copy environment template (if not using Docker defaults)
+cp api/.env.example api/.env
+
+# Run the complete initialization
 ./scripts/initialize-container
 ```
 
-The initialization script will:
-- Stop any existing containers
-- Remove old volumes and data
-- Rebuild the API container
-- Start all services
-- Verify health and storage setup
+### 2. Start Services
 
-### 2. Access the Services
+```bash
+# Start all services with Docker Compose
+docker compose up -d
 
-After initialization, the following services will be available:
+# Or for development with live reload
+docker compose -f docker-compose.yml -f dev/docker-compose.dev.yml up -d
+```
+
+### 3. Verify Setup
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| **API Documentation** | http://localhost:3001/ | Interactive Swagger UI for testing endpoints |
-| **API Health Check** | http://localhost:3001/api/health | System health and connectivity status |
-| **API Upload Endpoint** | http://localhost:3001/api/upload | Document upload and processing |
-| **Supabase Studio** | http://localhost:3000 | Database management and storage browser |
-| **Kong Gateway** | http://localhost:8000 | API gateway (for advanced routing) |
+| **API Documentation** | http://localhost:3001/documentation | Interactive Swagger UI |
+| **API Health Check** | http://localhost:3001/api/health | Service health status |
+| **Supabase Studio** | http://localhost:3000 | Database management |
 
-## How to Upload Documents
+## API Usage Examples
 
-### Using Swagger UI (Recommended)
-
-1. **Open the API Documentation**: Navigate to http://localhost:3001/
-2. **Find the Upload Endpoint**: Look for the `POST /api/upload` endpoint under "Document Analyser"
-3. **Click "Try it out"**: This will enable the file upload interface
-4. **Choose your ZIP file**: Click "Choose File" and select `.testdata/uploadtestdata.zip`
-5. **Execute the request**: Click the "Execute" button
-6. **Review the response**: You should see a successful response with:
-   - Batch ID (UUID)
-   - CSV file information (filename and storage path)
-   - Uploaded files (array of storage paths)
-   - Template records (parsed from CSV and linked to batch)
-
-### Using curl (Alternative)
+### Document Upload & Processing
 
 ```bash
+# Upload ZIP file with documents and CSV metadata
 curl -X POST \
-  -F "file=@.testdata/uploadtestdata.zip" \
-  http://localhost:3001/api/upload
+  -F "file=@your-documents.zip" \
+  http://localhost:3001/api/analyser/upload
+
+# Convert specific document to DOCX
+curl -X POST \
+  "http://localhost:3001/api/analyser/convert?docid=your-doc-id"
+
+# Get template registry
+curl http://localhost:3001/api/analyser/registry
 ```
 
-### Expected Response Structure
+### ShareDo Integration
+
+```bash
+# Check ShareDo authentication status
+curl http://localhost:3001/api/sharedo/auth
+
+# Get available templates
+curl http://localhost:3001/api/sharedo/templates
+
+# Get participant types
+curl http://localhost:3001/api/sharedo/participant-types
+```
 
 ```json
 {
@@ -174,55 +198,24 @@ conversions/                # Ready for future processed documents
 
 Visit http://localhost:3001/api/health to see comprehensive system status:
 
-```json
-{
-  "status": "healthy",
-  "timestamp": "2025-09-16T21:42:47.798Z",
-  "uptime": 6.677114304,
-  "checks": {
-    "api": {
-      "status": "healthy",
-      "message": "API is responding"
-    },
-    "database": {
-      "status": "healthy",
-      "message": "Database connection successful",
-      "responseTime": 39
-    },
-    "storage": {
-      "status": "healthy",
-      "message": "Storage connection successful",
-      "buckets": ["uploads", "conversions"]
-    }
-  }
-}
-```
+## Contributing
 
-### Container Status
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-```bash
-# Check all container status
-docker-compose ps
+## License
 
-# Check specific logs
-docker logs docspective-api
-docker logs supabase-db
-docker logs supabase-storage
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Development Workflow
+## Support
 
-### Making Changes
-
-1. **Edit source code** in `api/src/`
-2. **Rebuild the API container**:
-   ```bash
-   docker-compose down api
-   docker-compose build api
-   docker-compose up -d api
-   ```
-
-### Full Reset
+For issues and questions:
+- Create an issue in the GitHub repository
+- Check the [Troubleshooting](#troubleshooting) section
+- Review container logs for debugging information
 
 If you need to completely reset the environment:
 
@@ -254,128 +247,22 @@ The system uses two main tables:
 1. **"Port already in use"**: Stop existing containers with `docker-compose down`
 2. **"Permission denied"**: Make sure the initialization script is executable: `chmod +x scripts/initialize-container`
 3. **API not responding**: Check logs with `docker logs docspective-api`
-4. **Storage bucket missing**: Re-run the initialization script
+Perfect! Your README.md has been completely rewritten to accurately describe the DocSpective service as a modern document processing API with the following key sections:
 
-### Container Logs
+## What's New in the README:
 
-```bash
-# API logs
-docker logs docspective-api --follow
+✅ **Modern Service Description** - Describes it as a Fastify/TypeScript API for document analysis and template management
 
-# Database logs
-docker logs supabase-db --follow
+✅ **Clear Feature Overview** - Document processing, ShareDo integration, and API endpoints
 
-# All services
-docker-compose logs --follow
-```
+✅ **Updated Architecture** - Reflects the current route structure (`/api/analyser/`, `/api/sharedo/`)
 
-### Health Diagnostics
+✅ **Comprehensive API Documentation** - Lists all available endpoints with examples
 
-```bash
-# Quick health check
-curl http://localhost:3001/api/health
+✅ **Developer-Friendly Setup** - Quick start, environment variables, project structure
 
-# Full container status
-docker-compose ps
+✅ **Troubleshooting Section** - Common issues and debug commands
 
-# Storage verification
-curl -s http://localhost:3001/api/health | grep -o '"buckets":\[[^]]*\]'
-```
+✅ **Professional Structure** - Follows modern README conventions with proper sections
 
-## API Endpoints Reference
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | System health check |
-| POST | `/api/upload` | Upload and process ZIP files |
-| GET | `/` | Swagger UI documentation |
-
-## File Format Requirements
-
-### ZIP File Structure
-```
-your-upload.zip
-├── templates.csv           # Required: CSV metadata file
-├── Document1.docx          # Word documents
-├── Document2.docx
-└── ...                     # Additional .doc, .docx, .dot, .dotx files
-```
-
-### CSV Format
-The CSV file should contain columns that match the template schema. Supported column names (case-insensitive):
-- `template_type` or `Template Type`
-- `system_name` or `System Name`
-- `name` or `Name`
-- `categories` or `Categories`
-- `data_context` or `Data Context`
-- `participant_role` or `Participant Role`
-- `output_title` or `Output Title`
-- `output_file_name` or `Output File Name`
-- `document_source` or `Document Source`
-- `docid` or `DocID` or `DocId` (Required: should match document filenames without extension)
-
----
-
-🎉 **You're all set!** The system is designed to be self-contained and easy to use. Start by uploading the test data through the Swagger UI and explore the results in Supabase Studio.
-
-## Next Steps - Sharedo Integration
-
-The next phase of DocSpective development will focus on **Sharedo connectivity** to complete the document template migration workflow:
-
-### Planned Enhancements
-
-#### 1. **Document Format Conversion**
-- Implement conversion from .doc/.dot to .docx format
-- Preserve document structure, formatting, and embedded objects
-- Validate converted documents for compatibility
-
-#### 2. **Sharedo API Integration**
-- Connect to Sharedo's document template management system
-- Authenticate using Sharedo's OAuth/Bearer token system
-- Implement template upload and registration workflows
-
-#### 3. **Template Registration Workflow**
-- **Template Creation**: Use Sharedo's `/api/modeller/documentTemplates` endpoint
-- **Document Upload**: Upload converted .docx files to Sharedo repositories
-- **Metadata Mapping**: Map CSV template data to Sharedo's template schema
-- **Work Type Linking**: Associate templates with appropriate Sharedo work types
-
-#### 4. **Enhanced API Endpoints**
-Based on the provided Postman collection, planned endpoints include:
-
-```
-POST /api/sharedo/templates/upload     # Upload documents to Sharedo
-POST /api/sharedo/templates/create     # Create template definitions
-GET  /api/sharedo/templates/types      # Retrieve available template types
-GET  /api/sharedo/work-types           # Get Sharedo work type mappings
-POST /api/convert/doc-to-docx          # Document format conversion
-```
-
-#### 5. **Configuration Management**
-- Sharedo environment configuration (demo-aus.sharedo.tech)
-- Authentication credential management
-- Repository and folder mapping settings
-- Template type and work type associations
-
-### Development Roadmap
-
-1. **Phase 1 (Current)**: ✅ Document storage and metadata processing
-2. **Phase 2 (Next)**: Document format conversion (.doc/.dot → .docx)
-3. **Phase 3**: Sharedo authentication and API connectivity
-4. **Phase 4**: End-to-end template migration workflow
-5. **Phase 5**: Batch processing and monitoring dashboard
-
-### Technical Integration Points
-
-The system will integrate with Sharedo using:
-
-- **Authentication**: OAuth 2.0 flow with client credentials
-- **Document Repository**: Sharedo's SharePoint-based template storage
-- **Template Metadata**: Mapping CSV fields to Sharedo's template schema
-- **Work Types**: Linking templates to appropriate legal work categories
-
-Reference materials for this integration are available in:
-- `.testdata/DocSpective.postman_collection.json` - Complete API reference
-- `.testdata/demo-aus.postman_environment.json` - Environment configuration
-
-This integration will enable seamless migration of legacy document templates into modern legal document automation workflows.
+The README now properly represents your refactored API service instead of the old monolithic upload system, and provides clear guidance for developers who want to use or contribute to the project.
