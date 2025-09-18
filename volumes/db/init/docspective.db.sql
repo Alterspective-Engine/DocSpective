@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS "uploads" (
   "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   "timestamp" timestamp with time zone DEFAULT now(),
-  "filepath" text NOT NULL
+  "filepath" text UNIQUE NOT NULL
 );
 
 -- Create templates table with batch_id reference
@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS "templates" (
   "output_file_name" text,
   "document_source" text,
   "docid" text UNIQUE NOT NULL,
-  "batch_id" uuid REFERENCES "uploads"("id") ON DELETE SET NULL
+  "batch_id" uuid REFERENCES "uploads"("id") ON DELETE SET NULL,
+  "converted_file_path" text
 );
 
 -- Grant permissions for PostgREST API access

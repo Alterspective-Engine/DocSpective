@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import authRoute from './auth';
 import templatesRoute from './templates';
 import templateTypesRoute from './templateTypes';
-import workTypesRoute from './work-types';
+import workTypesRoute from './workTypes';
 import uploadRoute from './upload';
 import participantTypeRoute from './participantTypes';
 

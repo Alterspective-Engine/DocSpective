@@ -370,6 +370,8 @@ services:
       SHAREDO_DOMAIN: ${SHAREDO_DOMAIN}
       SHAREDO_APPNAME: ${SHAREDO_APPNAME}
       SHAREDO_APPSECRET: ${SHAREDO_APPSECRET}
+      # Document Converter Service
+      DOCUMENT_CONVERTER_URL: ${DOCUMENT_CONVERTER_URL}
     depends_on:
       db:
         condition: service_healthy

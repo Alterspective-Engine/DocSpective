@@ -200,13 +200,14 @@ async function registerPlugins() {
 
 // Register routes
 async function registerRoutes() {
-  // Create API scope with prefix
-  await fastify.register(async function (fastify) {
-    // All routes registered here will automatically have /api prefix
-    await fastify.register(import('./routes/upload'));
-    await fastify.register(import('./routes/health'));
-    await fastify.register(import('./routes/sharedo/index'), { prefix: '/sharedo' });
-  }, { prefix: '/api' });
+  const healthMod = await import('./routes/health');
+  fastify.register(healthMod.default || healthMod, { prefix: '/api' });
+
+  const sharedoMod = await import('./routes/sharedo/index');
+  fastify.register(sharedoMod.default || sharedoMod, { prefix: '/api/sharedo' });
+
+  const analyserMod = await import('./routes/analyser/index');
+  fastify.register(analyserMod.default || analyserMod, { prefix: '/api/analyser' });
 }
 
 // Start server
