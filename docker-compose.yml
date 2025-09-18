@@ -364,6 +364,12 @@ services:
       SUPABASE_URL: http://kong:8000
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      # ShareDo API Integration
+      SHAREDO_USERNAME: ${SHAREDO_USERNAME}
+      SHAREDO_HOSTNAME: ${SHAREDO_HOSTNAME}
+      SHAREDO_DOMAIN: ${SHAREDO_DOMAIN}
+      SHAREDO_APPNAME: ${SHAREDO_APPNAME}
+      SHAREDO_APPSECRET: ${SHAREDO_APPSECRET}
     depends_on:
       db:
         condition: service_healthy

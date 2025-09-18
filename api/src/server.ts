@@ -1,4 +1,25 @@
 import Fastify, { FastifyRequest, FastifyReply } from 'fastify';
+import path from 'path';
+import fs from 'fs';
+
+// Load environment variables early from api/.env when running compiled dist or tsx
+(() => {
+  // If variables already appear loaded (e.g., in Docker), skip
+  if (process.env.SHAREDO_HOSTNAME || process.env.PORT) return;
+  const envPath = path.resolve(__dirname, '..', '.env'); // dist/server.js => dist, go up one -> dist/.. = project root of api
+  const fallbackEnvPath = path.resolve(process.cwd(), '.env');
+  let chosen: string | null = null;
+  if (fs.existsSync(envPath)) chosen = envPath; else if (fs.existsSync(fallbackEnvPath)) chosen = fallbackEnvPath;
+  if (chosen) {
+    try {
+      // Lazy require to avoid type overhead
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require('dotenv').config({ path: chosen });
+    } catch (e) {
+      // Silent – Fastify/env will still validate later
+    }
+  }
+})();
 
 // Create Fastify instance with TypeScript support
 const fastify = Fastify({
@@ -11,6 +32,39 @@ const fastify = Fastify({
       },
     },
   } : true
+});
+
+// Set up graceful shutdown handlers early
+let isShuttingDown = false;
+
+const gracefulShutdown = async (signal: string) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  
+  console.log(`\nReceived ${signal}, shutting down gracefully...`);
+  
+  try {
+    await fastify.close();
+    console.log('Server closed successfully');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error during shutdown:', err);
+    process.exit(1);
+  }
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  gracefulShutdown('unhandledRejection');
 });
 
 // Add custom validator compiler for multipart uploads with Swagger
@@ -128,7 +182,7 @@ async function registerPlugins() {
       },
       servers: [
         {
-          url: 'http://localhost:3001',
+          url: `http://localhost:${process.env.PORT || '3001'}`,
           description: 'Development server'
         }
       ]
@@ -151,6 +205,7 @@ async function registerRoutes() {
     // All routes registered here will automatically have /api prefix
     await fastify.register(import('./routes/upload'));
     await fastify.register(import('./routes/health'));
+    await fastify.register(import('./routes/sharedo/index'), { prefix: '/sharedo' });
   }, { prefix: '/api' });
 }
 
@@ -163,28 +218,25 @@ async function start() {
     const port = parseInt(process.env.PORT || '3001');
     const host = '0.0.0.0'; // Always bind to 0.0.0.0 for Docker compatibility
 
-    await fastify.listen({ port, host });
+    // One-time diagnostic for ShareDo vars (only in non-production, and only if any missing)
+    if (process.env.NODE_ENV !== 'production') {
+      const requiredShareDo = ['SHAREDO_HOSTNAME','SHAREDO_DOMAIN','SHAREDO_USERNAME'];
+      const missing = requiredShareDo.filter(k => !process.env[k]);
+      if (missing.length) {
+        fastify.log.warn({ missing }, 'Some ShareDo environment variables are missing');
+      }
+    }
+
+    await fastify.listen({ port, host, exclusive:false });
     
     fastify.log.info(`🚀 Server ready at http://${host}:${port}`);
     fastify.log.info(`📚 Documentation available at http://${host}:${port}/`);
+
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
   }
 }
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  fastify.log.info('Received SIGINT, shutting down gracefully...');
-  await fastify.close();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  fastify.log.info('Received SIGTERM, shutting down gracefully...');
-  await fastify.close();
-  process.exit(0);
-});
 
 // Start the server
 start();

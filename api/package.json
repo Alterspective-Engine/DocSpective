@@ -4,13 +4,15 @@
   "description": "DocSpective API built with Fastify and TypeScript",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "serve": "npm run build && npm start"
   },
   "keywords": [
     "fastify",
@@ -49,7 +51,8 @@
     "prettier": "^3.0.3",
     "ts-jest": "^29.1.1",
     "tsx": "^3.14.0",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "rimraf": "^5.0.5"
   },
   "engines": {
     "node": ">=20.0.0"
