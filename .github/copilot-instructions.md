@@ -113,6 +113,21 @@ These principles apply regardless of your current role:
 - Override process constraints for technical necessity
 - Coordinate cross-role initiatives
 
+## Instruction Management
+
+For managing changes to copilot instructions, see the **Instruction Management Protocol** section in `.github/copilot-tech/github.md`.
+
+## Technology-Specific Instructions
+
+When working with specific technologies, also reference these instruction files:
+
+| Technology | Instructions File | When to Apply |
+|------------|-------------------|---------------|
+| GitHub | `.github/copilot-tech/github.md` | Repository management, PR workflows, Actions |
+| Supabase | `.github/copilot-tech/supabase.md` | Database operations, auth, storage |
+| Postman | `.github/copilot-tech/postman.md` | API collection management, testing |
+| Docker | `.github/copilot-tech/docker.md` | Container operations, builds |
+
 ## Getting Started
 
 1. **Read this message carefully**
