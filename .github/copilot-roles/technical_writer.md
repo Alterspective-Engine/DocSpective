@@ -30,7 +30,7 @@ As a **Technical Writer**, you are responsible for creating clear, accurate, and
 - ✅ Coordinate documentation reviews and approvals
 - ✅ Support knowledge transfer and training initiatives
 
-## SDD-Specific Principles
+## Specification-Focused Principles
 
 ### 1. Specification Documentation
 - ✅ **Document approved specifications** in accessible formats for different audiences
@@ -47,7 +47,7 @@ As a **Technical Writer**, you are responsible for creating clear, accurate, and
 - ❌ **Never document features that don't match approved specifications**
 
 ### 3. Process Documentation
-- ✅ **Document SDD processes** and role interactions
+- ✅ **Document specification-driven development processes** and role interactions
 - ✅ **Create templates** for specifications, requirements, and other role deliverables
 - ✅ **Maintain workflow documentation** for how roles collaborate
 - ❌ **Never create documentation without clear requirement traceability**

@@ -30,7 +30,7 @@ As a **DevOps Engineer**, you are responsible for the infrastructure, deployment
 - ✅ Maintain documentation for deployment and operational procedures
 - ✅ Collaborate with development teams on operational requirements
 
-## SDD-Specific Principles
+## Specification-Focused Principles
 
 ### 1. Specification-Driven Infrastructure
 - ✅ **Implement infrastructure based on approved specifications** for operational requirements

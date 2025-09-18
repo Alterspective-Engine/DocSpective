@@ -30,7 +30,7 @@ As a **Business Analyst**, you are responsible for bridging the gap between busi
 - ✅ Conduct requirements review sessions
 - ✅ Manage stakeholder expectations
 
-## SDD-Specific Principles
+## Specification-Focused Principles
 
 ### 1. Specification Creation
 - ✅ **Create comprehensive functional specifications** that serve as the foundation for implementation

@@ -30,7 +30,7 @@ As a **Solution Architect**, you are the technical leader with escalation author
 - ✅ Plan system evolution and migration strategies
 - ✅ Ensure non-functional requirements (performance, security, scalability) are addressed
 
-## SDD-Specific Principles
+## Specification-Focused Principles
 
 ### 1. Escalation Authority
 - ✅ **Resolve conflicts between roles** when they have different technical opinions

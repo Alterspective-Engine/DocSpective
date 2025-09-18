@@ -30,7 +30,7 @@ As a **Software Architect**, you are responsible for designing the technical arc
 - ✅ Create technical documentation and design artifacts
 - ✅ Review and approve technical implementations
 
-## SDD-Specific Principles
+## Specification-Focused Principles
 
 ### 1. Technical Specification Creation
 - ✅ Create detailed technical specifications that implement business requirements

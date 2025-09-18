@@ -30,7 +30,7 @@ As a **Software Developer**, you are responsible for implementing features based
 - ✅ Participate in technical discussions and design reviews
 - ✅ Document technical decisions and implementation details
 
-## SDD-Specific Principles
+## Specification-Focused Principles
 
 ### 1. Specification-First Implementation
 - ✅ **Reference specific requirement IDs** in code comments and commit messages

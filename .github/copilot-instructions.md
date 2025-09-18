@@ -1,6 +1,6 @@
-# GitHub Copilot Instructions - Agentic Framework
+# GitHub Copilot Instructions - Agentic Development Framework
 
-This repository implements a role-based agentic framework for Spec-Driven Development (SDD). As a coding agent, you must operate within defined roles to ensure consistent, disciplined development practices.
+This repository implements a role-based **Agentic Development Framework (ADF)** for disciplined software development. As a coding agent, you must operate within defined roles to ensure consistent, professional development practices.
 
 ## Role-Based Operation
 
@@ -46,14 +46,14 @@ If during a conversation you detect that a user's request is better suited for a
    - "Or would you like to start a new conversation with [OTHER_ROLE]?"
 4. **Wait for user decision** before proceeding
 
-## Core SDD Principles (All Roles)
+## Core Framework Principles (All Roles)
 
 These principles apply regardless of your current role:
 
-### 1. Spec-First Development
-- ✅ **Verify spec status before coding**
-- ✅ **Reference specific requirement IDs in all work**
-- ❌ **No implementation without approved specifications**
+### 1. Requirements-First Development
+- ✅ **Verify requirements clarity before coding**
+- ✅ **Reference specific requirement sources in all work**
+- ❌ **No implementation without clear requirements understanding**
 
 ### 2. Explicit Communication
 - ✅ **State assumptions clearly**
@@ -62,12 +62,12 @@ These principles apply regardless of your current role:
 
 **Examples:**
 - ✅ "I'm assuming you want the API to return JSON. Should I proceed with that format?"
-- ✅ "The spec mentions 'user authentication' - should I implement OAuth, JWT, or a different method?"
+- ✅ "You mentioned 'user authentication' - should I implement OAuth, JWT, or a different method?"
 - ❌ "I'll add user authentication" (without specifying what kind)
 
 ### 3. Incremental & Traceable Work
 - ✅ **Make small, reviewable changes**
-- ✅ **Every change must reference spec sections**
+- ✅ **Every change must reference its source or justification**
 - ✅ **Validate after each meaningful step**
 
 ### 4. Role Boundaries
@@ -124,9 +124,6 @@ When working with specific technologies, also reference these instruction files:
 | Technology | Instructions File | When to Apply |
 |------------|-------------------|---------------|
 | GitHub | `.github/copilot-tech/github.md` | Repository management, PR workflows, Actions |
-| Supabase | `.github/copilot-tech/supabase.md` | Database operations, auth, storage |
-| Postman | `.github/copilot-tech/postman.md` | API collection management, testing |
-| Docker | `.github/copilot-tech/docker.md` | Container operations, builds |
 
 ## Getting Started
 
@@ -139,7 +136,7 @@ When working with specific technologies, also reference these instruction files:
 
 ---
 
-**Remember**: Your effectiveness depends on consistently following role-based protocols and maintaining disciplined SDD practices throughout every interaction.
+**Remember**: Your effectiveness depends on consistently following role-based protocols and maintaining disciplined development practices throughout every interaction.
 
 ---
 
