@@ -12,4 +12,6 @@ export interface TemplateRow {
   docid: string;
   batch_id?: string;
   converted_file_path?: string;
+  sharedo_pathid: string;
+  sharedo_downloadurl: string;
 }

@@ -36,12 +36,87 @@ export default async function uploadRoutes(fastify: FastifyInstance) {
           items: {
             type: 'object',
             properties: {
-              id: { type: 'string', description: 'Uploaded file ID' },
-              name: { type: 'string', description: 'File name' },
-              size: { type: 'number', description: 'File size in bytes' },
-              contentType: { type: 'string', description: 'MIME type' },
-              url: { type: 'string', description: 'File URL' }
-            }
+              size: { 
+                type: 'number', 
+                description: 'File size in bytes' 
+              },
+              extension: { 
+                type: 'string', 
+                description: 'File extension including dot (e.g., .dotx)' 
+              },
+              icon: { 
+                type: 'string', 
+                description: 'FontAwesome icon class for the file type' 
+              },
+              url: { 
+                type: 'string', 
+                description: 'SharePoint URL for viewing the file' 
+              },
+              urls: { 
+                type: ['object', 'null'], 
+                description: 'Additional URLs (can be null)' 
+              },
+              downloadUrl: { 
+                type: 'string', 
+                description: 'Direct download URL path' 
+              },
+              urlMeta: { 
+                type: 'object', 
+                description: 'URL metadata object' 
+              },
+              versions: { 
+                type: 'array', 
+                description: 'File version history' 
+              },
+              editMetaUrl: { 
+                type: 'string', 
+                description: 'SharePoint edit metadata URL' 
+              },
+              type: { 
+                type: 'number', 
+                description: 'File type indicator' 
+              },
+              id: { 
+                type: 'string', 
+                description: 'Unique file identifier path' 
+              },
+              pathId: { 
+                type: 'string', 
+                description: 'File path identifier' 
+              },
+              name: { 
+                type: 'string', 
+                description: 'Full filename with extension' 
+              },
+              title: { 
+                type: 'string', 
+                description: 'File title without extension' 
+              },
+              lastModifiedDate: { 
+                type: 'string', 
+                format: 'date-time',
+                description: 'Last modification timestamp' 
+              },
+              lastModifiedBy: { 
+                type: 'string', 
+                description: 'Username who last modified the file' 
+              },
+              createdDate: { 
+                type: 'string', 
+                format: 'date-time',
+                description: 'File creation timestamp' 
+              },
+              meta: { 
+                type: 'object', 
+                description: 'Additional metadata object' 
+              }
+            },
+            required: [
+              'size', 'extension', 'icon', 'url', 'downloadUrl', 
+              'urlMeta', 'versions', 'editMetaUrl', 'type', 'id', 
+              'pathId', 'name', 'title', 'lastModifiedDate', 
+              'lastModifiedBy', 'createdDate', 'meta'
+            ]
           }
         },
         400: {

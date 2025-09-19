@@ -55,7 +55,8 @@ export default async function uploadRoutes(fastify: FastifyInstance) {
                                     batch_id: { type: 'string' },
                                     original_file_path: { type: 'string' },
                                     converted_file_path: { type: 'string' },
-                                    another_field: { type: 'string' } // Example of an additional optional field
+                                    sharedo_pathid: { type: 'string' },
+                                    sharedo_downloadurl: { type: 'string' }
                                 }
                             }
                         }

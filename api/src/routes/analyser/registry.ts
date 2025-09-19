@@ -14,6 +14,8 @@ export default async function registryRoutes(fastify: FastifyInstance) {
             properties: {
               id: { type: 'string' },
               template_type: { type: 'string' },
+              sharedo_pathid: { type: 'string' },
+              sharedo_downloadurl: { type: 'string' },
               system_name: { type: 'string' },
               name: { type: 'string' },
               categories: { type: 'string' },
@@ -24,7 +26,7 @@ export default async function registryRoutes(fastify: FastifyInstance) {
               document_source: { type: 'string' },
               docid: { type: 'string' },
               batch_id: { type: 'string' },
-              converted_file_path: { type: 'string' }
+              converted_file_path: { type: 'string' },
             }
           }
         },

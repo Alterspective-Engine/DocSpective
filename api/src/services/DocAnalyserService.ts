@@ -6,6 +6,8 @@
 import { Pool } from 'pg';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { TemplateRow } from '../types/templateRow';
+import { shareDoService } from './ShareDoService';
+import { CreateTemplateRequest } from '../types/createTemplateRequest';
 
 export class DocAnalyserService {
   private supabase: SupabaseClient;
@@ -51,12 +53,13 @@ export class DocAnalyserService {
       const query = `
         SELECT id, template_type, system_name, name, categories, data_context, 
                participant_role, output_title, output_file_name, document_source, 
-               docid, batch_id, converted_file_path
+               docid, batch_id, converted_file_path, sharedo_pathid, sharedo_downloadurl
         FROM templates
         ORDER BY id DESC;
       `;
 
       const result = await client.query(query);
+      console.log(result);
       return result.rows as TemplateRow[];
 
     } finally {
@@ -151,6 +154,26 @@ export class DocAnalyserService {
       `;
 
       await client.query(updateQuery, [convertedfilepath, docid]);
+
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Update template with ShareDo file information
+   */
+  async updateTemplateShareDoInfo(docid: string, shareDoPathId: string, shareDoDownloadUrl: string): Promise<void> {
+    const client = await this.pool.connect();
+
+    try {
+      const updateQuery = `
+        UPDATE templates 
+        SET sharedo_pathid = $1, sharedo_downloadurl = $2 
+        WHERE docid = $3;
+      `;
+
+      await client.query(updateQuery, [shareDoPathId, shareDoDownloadUrl, docid]);
 
     } finally {
       client.release();
@@ -350,7 +373,9 @@ export class DocAnalyserService {
             document_source: row.document_source || row['Document Source'],
             docid: row.docid || row['DocID'],
             batch_id: batchId,
-            converted_file_path: '' // Initially empty
+            converted_file_path: '',
+            sharedo_pathid: '',
+            sharedo_downloadurl: '' // Initially empty
           };
 
           // Only add rows with required fields
@@ -383,6 +408,181 @@ export class DocAnalyserService {
         storagePath: csvStoragePath
       }
     };
+  }
+
+  /**
+   * Deploy a document as a ShareDo template
+   */
+  async deployToShareDo(docid: string, templateFolder: string): Promise<{ id: string }> {
+    // Get template data from database
+    const template = await this.getTemplateByDocId(docid);
+    if (!template) {
+      throw new Error(`Template with docid '${docid}' not found`);
+    }
+
+    // Get the template type system name from ShareDo
+    let templateTypeSystemName = ''; // Empty string if not found
+    if (template.template_type) {
+      const shareDoTemplateTypeSystemName = await shareDoService.getTemplateTypeSystemName(template.template_type);
+      if (shareDoTemplateTypeSystemName) {
+        templateTypeSystemName = shareDoTemplateTypeSystemName;
+      } else {
+        console.warn(`Template type "${template.template_type}" not found in ShareDo, using empty string`);
+      }
+    }
+
+    // Get the context type system name from ShareDo work types
+    let contextTypeSystemName = ''; // Empty string if not found
+    if (template.data_context) {
+      const shareDoContextTypeSystemName = await shareDoService.getContextTypeSystemName(template.data_context);
+      if (shareDoContextTypeSystemName) {
+        contextTypeSystemName = shareDoContextTypeSystemName;
+      } else {
+        throw new Error(`Context type "${template.data_context}" not found in ShareDo work types`);
+      }
+    } else {
+      throw new Error('Template data_context is required for deployment');
+    }
+
+    // Check if converted file path exists
+    if (!template.converted_file_path || template.converted_file_path.trim() === '') {
+      throw new Error(`Template with docid '${docid}' has no converted file path. Please convert the document first.`);
+    }
+
+    // Download the converted file from Supabase storage
+    const convertedFileBuffer = await this.downloadFile('conversions', template.converted_file_path);
+    
+    // Extract filename from the converted file path
+    const fileName = template.converted_file_path;
+    
+    // Upload the converted file to ShareDo in the specified folder
+    let shareDoPathId: string;
+    let shareDoDownloadUrl: string;
+    try {
+      const uploadResult = await shareDoService.uploadDocument(
+        Buffer.from(convertedFileBuffer), 
+        fileName, 
+        templateFolder
+      );
+      
+      // Extract the file information from the upload result
+      if (uploadResult && uploadResult.length > 0) {
+        const uploadedFile = uploadResult[0];
+        shareDoPathId = uploadedFile.pathId;
+        shareDoDownloadUrl = uploadedFile.downloadUrl;
+      } else {
+        throw new Error('Upload succeeded but no file path returned from ShareDo - ' + JSON.stringify(uploadResult));
+      }
+
+      
+      // Update the template record with ShareDo file information
+      await this.updateTemplateShareDoInfo(docid, shareDoPathId, shareDoDownloadUrl);
+
+      // Download the file back from ShareDo and save to our storage
+      // try {
+      //   const downloadedFileBuffer = await shareDoService.downloadDocument(shareDoDownloadUrl);
+        
+      //   // Create a filename for the downloaded file
+      //   const downloadedFileName = `sharedo-${fileName}`;
+        
+      //   // Save the downloaded file to our storage in a 'sharedo-downloads' bucket
+      //   // Convert Buffer to ArrayBuffer for uploadFile method
+      //   const arrayBuffer = new ArrayBuffer(downloadedFileBuffer.length);
+      //   const uint8Array = new Uint8Array(arrayBuffer);
+      //   uint8Array.set(downloadedFileBuffer);
+      //   await this.uploadFile('conversions', downloadedFileName, arrayBuffer);
+        
+      //   console.log(`Successfully downloaded and saved file from ShareDo: ${downloadedFileName}`);
+      // } catch (downloadError) {
+      //   console.warn(`Failed to download file back from ShareDo: ${downloadError instanceof Error ? downloadError.message : 'Unknown error'}`);
+      //   // Don't throw here - the upload to ShareDo was successful, this is just a backup
+      // }
+      
+    } catch (error) {
+      throw new Error(`Failed to upload file to ShareDo: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Create ShareDo template payload using database data
+    const templateData: CreateTemplateRequest = {
+      systemName: template.system_name!,
+      templateType: templateTypeSystemName,
+      active: true,
+      title: template.name!,
+      description: template.name!,
+      tags: [],
+      processTags: [],
+      toRoleRequired: false,
+      regardingRoleRequired: false,
+      toRoles: [],
+      regardingRoles: [],
+      recipientLocationRequired: false,
+      recipientConfig: {
+        recipientLocationRequired: false
+      },
+      contextTypeSystemName: contextTypeSystemName,
+      formIds: [],
+      approval: {
+        competencySystemNames: []
+      },
+      deliveryChannels: [],
+      refreshOnDelivery: false,
+      deliveryRefreshTags: [],
+      // TODO: figure out what this is
+      defaultFolderId: 5006002,
+      outputDestinations: [],
+      pdfOptions: {
+        generate: false,
+        deleteOriginal: false,
+        fileName: '[_titleAsFilename].pdf'
+      },
+      packDocuments: [
+        {
+          id: null,
+          type: 'document',
+          outputTitle: template.output_title!,
+          outputFileName: template.output_file_name!,
+          copies: 1,
+          isMandatory: true,
+          order: 1,
+          sources: [
+            {
+              id: null,
+              filePath: shareDoPathId,
+              order: 1,
+              status: null,
+              ruleSetSelection: {
+                operator: 'and',
+                ruleSetSystemNames: []
+              }
+            }
+          ]
+        }
+      ],
+      //TODO: Do we need this to be configurable?
+      templateRepository: 'templates',
+      displayInMenus: true,
+      displayContexts: [],
+      displayRuleSetSelection: {
+        operator: 'and',
+        ruleSetSystemNames: []
+      },
+      legacyPhaseRestrictions: [],
+      contentBlock: {
+        availableForTemplateAuthors: true,
+        availableForDocumentAuthors: true
+      },
+      multiPartyTemplateSources: [],
+      legalForm: {
+        outputFileName: '[_titleAsFilename].pdf',
+        reference: 'context.reference',
+        fields: []
+      }
+    };
+
+    // Deploy template to ShareDo
+    const result = await shareDoService.createTemplate(templateData.systemName, templateData);
+    
+    return result;
   }
 
   /**

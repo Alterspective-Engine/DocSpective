@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS "templates" (
   "document_source" text,
   "docid" text UNIQUE NOT NULL,
   "batch_id" uuid REFERENCES "uploads"("id") ON DELETE SET NULL,
-  "converted_file_path" text
+  "converted_file_path" text,
+  "sharedo_pathid" text,
+  "sharedo_downloadurl" text
 );
 
 -- Grant permissions for PostgREST API access

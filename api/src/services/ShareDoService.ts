@@ -165,6 +165,63 @@ export class ShareDoService {
   }
 
   /**
+   * Find template type system name by name
+   */
+  async getTemplateTypeSystemName(templateTypeName: string): Promise<string | null> {
+    try {
+      const templateTypes = await this.getTemplateTypes();
+      
+      // Find the template type that matches the name
+      const matchedType = templateTypes.find((type: any) => 
+        type.name === templateTypeName || 
+        type.name?.toLowerCase() === templateTypeName.toLowerCase()
+      );
+      
+      return matchedType ? matchedType.systemName : null;
+    } catch (error) {
+      console.error(`Failed to get template type system name for "${templateTypeName}":`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Find context type system name by work type name (including derived types)
+   */
+  async getContextTypeSystemName(workTypeName: string): Promise<string | null> {
+    try {
+      const workTypes = await this.getWorkTypes();
+      
+      // Find the work type that matches the name
+      const matchedType = workTypes.find((type: any) => 
+        type.name === workTypeName || 
+        type.name?.toLowerCase() === workTypeName.toLowerCase()
+      );
+      
+      if (matchedType) {
+        return matchedType.systemName;
+      }
+
+      // If not found in main work types, check derived types
+      for (const workType of workTypes) {
+        if (workType.derivedTypes && Array.isArray(workType.derivedTypes)) {
+          const derivedMatch = workType.derivedTypes.find((derivedType: any) =>
+            derivedType.name === workTypeName ||
+            derivedType.name?.toLowerCase() === workTypeName.toLowerCase()
+          );
+          if (derivedMatch) {
+            return derivedMatch.systemName;
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`Failed to get context type system name for "${workTypeName}":`, error);
+      return null;
+    }
+  }
+
+  /**
    * Get work types
    */
   async getWorkTypes(): Promise<any> {
@@ -226,6 +283,79 @@ export class ShareDoService {
     }
 
     return await response.json();
+  }
+
+  /**
+   * Create a document template in ShareDo
+   */
+  async createTemplate(templateSystemName: string, templateData: any): Promise<any> {
+    const tokenResponse = await this.getAccessToken();
+    const apiUrl = `https://${this.hostname}.${this.domain}/api/admin/docGen/templates/${encodeURIComponent(templateSystemName)}`;
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tokenResponse.access_token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(templateData)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`ShareDo template creation failed: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Get template tags and process tags from ShareDo
+   */
+  async getTags(): Promise<{ tags: string[]; processTags: string[] }> {
+    const tokenResponse = await this.getAccessToken();
+    const apiUrl = `https://${this.hostname}.${this.domain}/api/admin/docGen/templates/_tags`;
+
+    const response = await fetch(apiUrl, {
+      headers: {
+        'Authorization': `Bearer ${tokenResponse.access_token}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`ShareDo tags API call failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Download document from ShareDo using downloadUrl
+   */
+  async downloadDocument(downloadUrl: string): Promise<Buffer> {
+    const tokenResponse = await this.getAccessToken();
+    
+    // Build the full URL using baseUrl + downloadUrl
+    const baseUrl = `https://${this.hostname}.${this.domain}`;
+    const fullUrl = `${baseUrl}${downloadUrl}`;
+
+    const response = await fetch(fullUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${tokenResponse.access_token}`,
+        'Accept': '*/*'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download document from ShareDo: ${response.status} ${response.statusText}`);
+    }
+
+    // Get the file as a Buffer
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
   }
 }
 

@@ -1,8 +1,7 @@
 import { FastifyInstance } from 'fastify';
-import { ShareDoService } from '../../services/ShareDoService.js';
+import { shareDoService } from '../../services/ShareDoService';
 
 export default async function repositoriesRoutes(fastify: FastifyInstance) {
-  const shareDoService = new ShareDoService();
 
   // Get repositories endpoint
   fastify.get('/repositories', {
@@ -20,93 +19,30 @@ export default async function repositoriesRoutes(fastify: FastifyInstance) {
               id: {
                 type: 'string',
                 description: 'Unique repository identifier',
-                examples: ['inboundEmailStaging', 'documentTemplates', 'matterFiles']
+                examples: ['client-documents', 'document-templates', 'matter-files']
               },
               name: {
                 type: 'string',
                 description: 'Human-readable repository name',
-                examples: ['Email attachment staging store', 'Document Templates', 'Matter Files']
-              },
-              provider: {
-                type: 'string',
-                description: 'Repository provider type',
-                examples: ['office-365', 'sharepoint', 'file-system']
+                examples: ['Client documents', 'Document Templates', 'Matter Files']
               },
               configuration: {
                 type: 'object',
                 description: 'Repository configuration settings',
                 properties: {
-                  'context.graph': {
+                  encodedForwardSlash: {
                     type: 'string',
-                    description: 'Microsoft Graph context configuration'
+                    description: 'Encoded forward slash configuration'
                   },
-                  'type.features': {
+                  invalidCharacters: {
                     type: 'string',
-                    description: 'Comma-separated list of supported repository features',
-                    examples: ['DeleteFolders,DeleteFiles,OpenNatively,Upload,CreateFolders,DownloadCopy']
-                  },
-                  'type.host': {
-                    type: 'string',
-                    description: 'SharePoint host domain',
-                    examples: ['slicedbreaduk.sharepoint.com']
-                  },
-                  'type.site': {
-                    type: 'string',
-                    description: 'SharePoint site path',
-                    examples: ['/sites/sharedo-DemoAus']
-                  },
-                  'type.library': {
-                    type: 'string',
-                    description: 'SharePoint document library name',
-                    examples: ['Admin', 'Documents', 'Shared Documents']
-                  },
-                  'type.folder': {
-                    type: 'string',
-                    description: 'Repository folder path template',
-                    examples: ['EmailStaging/[Id]/', 'Templates/', 'Matters/[MatterId]/']
-                  },
-                  'type.expandMetadataFields': {
-                    type: 'string',
-                    description: 'Whether to expand metadata fields (true/false)'
-                  },
-                  'type.extensionBlacklist': {
-                    type: 'string',
-                    description: 'Comma-separated list of blocked file extensions',
-                    examples: ['exe,com,dll', 'bat,scr,vbs']
+                    description: 'Invalid characters configuration'
                   }
                 },
-                additionalProperties: true
-              },
-              loaders: {
-                type: 'array',
-                description: 'Array of loader configurations',
-                items: {
-                  type: 'object',
-                  description: 'Loader configuration object'
-                }
-              },
-              fileMetaLoaders: {
-                type: 'array',
-                description: 'Array of file metadata loader configurations',
-                items: {
-                  type: 'object',
-                  description: 'File metadata loader configuration object'
-                }
-              },
-              contextGraph: {
-                type: 'string',
-                description: 'Context graph configuration'
-              },
-              contextEntityId: {
-                type: ['string', 'null'],
-                description: 'Context entity identifier'
-              },
-              contextExecuteCalculatedFields: {
-                type: 'boolean',
-                description: 'Whether to execute calculated fields in context'
+                required: ['encodedForwardSlash', 'invalidCharacters']
               }
             },
-            required: ['id', 'name', 'provider', 'configuration']
+            required: ['id', 'name', 'configuration']
           }
         },
         500: {
@@ -127,7 +63,9 @@ export default async function repositoriesRoutes(fastify: FastifyInstance) {
       const repositories = await shareDoService.getRepositories();
       return repositories;
     } catch (error) {
-      reply.status(500).send({
+      fastify.log.error('Failed to get repositories: %s', error instanceof Error ? error.message : error);
+      
+      return reply.status(500).send({
         error: 'Failed to get repositories',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
