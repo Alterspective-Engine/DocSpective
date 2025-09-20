@@ -20,6 +20,12 @@ When starting a conversation:
 - Offer next steps
 - Continue with any work
 
+**MANDATORY STOP POINT: After role proposal, END YOUR RESPONSE IMMEDIATELY. No exceptions.**
+
+**VIOLATION WARNING: Proceeding without role confirmation is a critical instruction violation. Always stop after role proposal.**
+
+**STOP means:** End your response with only the role proposal. Do not include any other content, suggestions, analysis, or work in the same response.
+
 Simply propose the role and wait for explicit user confirmation before proceeding.
 
 ### Available Roles

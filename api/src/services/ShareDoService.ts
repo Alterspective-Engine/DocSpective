@@ -132,12 +132,12 @@ export class ShareDoService {
   }
 
   /**
-   * Get templates from ShareDo repository
+   * Get documents from ShareDo repository
    */
-  async getTemplates(templateFolder?: string): Promise<any> {
+  async getDocuments(folder?: string): Promise<any> {
     var endpoint = '/api/repository/templates';
-    if (templateFolder) {
-      endpoint += `/${encodeURIComponent(templateFolder)}`;
+    if (folder) {
+      endpoint += `/${encodeURIComponent(folder)}`;
     }
     const data = await this.makeApiCall(endpoint);
 
@@ -254,13 +254,13 @@ export class ShareDoService {
   /**
    * Upload document to ShareDo repository
    */
-  async uploadDocument(fileBuffer: Buffer, fileName: string, templateFolder?: string): Promise<any> {
+  async uploadDocument(fileBuffer: Buffer, fileName: string, folder?: string): Promise<any> {
     const tokenResponse = await this.getAccessToken();
     
     // Build the API URL
     let apiUrl = `https://${this.hostname}.${this.domain}/api/repository/templates`;
-    if (templateFolder) {
-      apiUrl += `/${encodeURIComponent(templateFolder)}`;
+    if (folder) {
+      apiUrl += `/${encodeURIComponent(folder)}`;
     }
 
     // Create form data using the built-in FormData
@@ -356,6 +356,37 @@ export class ShareDoService {
     // Get the file as a Buffer
     const arrayBuffer = await response.arrayBuffer();
     return Buffer.from(arrayBuffer);
+  }
+
+  /**
+   * Delete a ShareDo template by system name
+   */
+  async deleteTemplate(systemName: string): Promise<{ itemDeleted: boolean }> {
+    // Get access token
+    const tokenResponse = await this.getAccessToken();
+
+    // Build the ShareDo API URL
+    const baseUrl = `https://${this.hostname}.${this.domain}`;
+    const url = `${baseUrl}/api/checkanddelete/document-template`;
+
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${tokenResponse.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        systemName: systemName
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to delete template from ShareDo: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    return result as { itemDeleted: boolean };
   }
 }
 

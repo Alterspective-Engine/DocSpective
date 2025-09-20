@@ -354,10 +354,10 @@ services:
     container_name: docspective-api
     build: 
       context: ./api
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PORT: 3001
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       LOG_LEVEL: info
@@ -377,8 +377,6 @@ services:
         condition: service_healthy
     ports:
       - "3001:3001"
-    volumes:
-      - ./api/src:/api/src
 
 volumes:
   db-config:

@@ -1,10 +1,10 @@
 import { FastifyInstance } from 'fastify';
 import { shareDoService } from '../../services/ShareDoService';
 
-export default async function participantTypesRoutes(fastify: FastifyInstance) {
+export default async function participantsRoutes(fastify: FastifyInstance) {
 
   // Get participant types endpoint
-  fastify.get('/participantTypes', {
+  fastify.get('/participants/types', {
     schema: {
       tags: ['ShareDo'],
       summary: 'Get participant types',

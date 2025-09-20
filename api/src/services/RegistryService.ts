@@ -1,15 +1,15 @@
 /**
- * Document Analyser Service
+ * Registry Service
  * Handles document conversion, storage operations, and database updates
  */
 
 import { Pool } from 'pg';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { TemplateRow } from '../types/templateRow';
+import { RegistryEntry } from '../types/registryEntry';
 import { shareDoService } from './ShareDoService';
 import { CreateTemplateRequest } from '../types/createTemplateRequest';
 
-export class DocAnalyserService {
+export class RegistryService {
   private supabase: SupabaseClient;
   private pool: Pool;
   private converterUrl: string;
@@ -46,7 +46,7 @@ export class DocAnalyserService {
   /**
    * Get all templates from the registry
    */
-  async getTemplates(): Promise<TemplateRow[]> {
+  async getRegistryEntries(): Promise<RegistryEntry[]> {
     const client = await this.pool.connect();
 
     try {
@@ -60,7 +60,7 @@ export class DocAnalyserService {
 
       const result = await client.query(query);
       console.log(result);
-      return result.rows as TemplateRow[];
+      return result.rows as RegistryEntry[];
 
     } finally {
       client.release();
@@ -70,14 +70,14 @@ export class DocAnalyserService {
   /**
    * Find template by docid
    */
-  async getTemplateByDocId(docid: string): Promise<TemplateRow | null> {
+  async getRegistryEntriesByDocId(docid: string): Promise<RegistryEntry | null> {
     const client = await this.pool.connect();
 
     try {
       const query = 'SELECT * FROM templates WHERE docid = $1';
       const result = await client.query(query, [docid]);
       
-      return result.rows.length > 0 ? result.rows[0] as TemplateRow : null;
+      return result.rows.length > 0 ? result.rows[0] as RegistryEntry : null;
 
     } finally {
       client.release();
@@ -87,7 +87,7 @@ export class DocAnalyserService {
   /**
    * Download file from Supabase storage
    */
-  async downloadFile(bucket: string, path: string): Promise<ArrayBuffer> {
+  async retrieveFile(bucket: string, path: string): Promise<ArrayBuffer> {
     const { data, error } = await this.supabase.storage
       .from(bucket)
       .download(path);
@@ -102,7 +102,7 @@ export class DocAnalyserService {
   /**
    * Upload file to Supabase storage
    */
-  async uploadFile(bucket: string, path: string, buffer: ArrayBuffer): Promise<string> {
+  async saveFile(bucket: string, path: string, buffer: ArrayBuffer): Promise<string> {
     const { data, error } = await this.supabase.storage
       .from(bucket)
       .upload(path, buffer, {
@@ -119,7 +119,7 @@ export class DocAnalyserService {
   /**
    * Convert document using external service
    */
-  async convertDocument(documentBuffer: ArrayBuffer, filename: string): Promise<ArrayBuffer> {
+  async doConversion(documentBuffer: ArrayBuffer, filename: string): Promise<ArrayBuffer> {
     const formData = new FormData();
     formData.append('file', new Blob([documentBuffer]), filename);
     formData.append('timeout', '30'); // 30 seconds timeout
@@ -143,7 +143,7 @@ export class DocAnalyserService {
   /**
    * Update template with converted document path
    */
-  async updateTemplateConvertedFilePath(docid: string, convertedfilepath: string): Promise<void> {
+  async updateConvertedFilePath(docid: string, convertedfilepath: string): Promise<void> {
     const client = await this.pool.connect();
 
     try {
@@ -163,7 +163,7 @@ export class DocAnalyserService {
   /**
    * Update template with ShareDo file information
    */
-  async updateTemplateShareDoInfo(docid: string, shareDoPathId: string, shareDoDownloadUrl: string): Promise<void> {
+  async updateShareDoDetails(docid: string, shareDoPathId: string, shareDoDownloadUrl: string): Promise<void> {
     const client = await this.pool.connect();
 
     try {
@@ -181,33 +181,187 @@ export class DocAnalyserService {
   }
 
   /**
+   * Add custom property to DOCX file (unified method that handles both cases)
+   */
+  async addCustomPropertyToDocx(docxBuffer: ArrayBuffer, templateId: string): Promise<ArrayBuffer> {
+    const AdmZip = require('adm-zip');
+    
+    // Extract ZIP contents to check if custom.xml exists
+    const zip = new AdmZip(Buffer.from(docxBuffer));
+    const customXmlEntry = zip.getEntry('docProps/custom.xml');
+    
+    if (customXmlEntry) {
+      // custom.xml exists - use the existing method
+      return await this.addCustomPropertyToExisting(docxBuffer, templateId);
+    } else {
+      // custom.xml doesn't exist - use the creation method
+      return await this.addCustomPropertyToNew(docxBuffer, templateId);
+    }
+  }
+
+  /**
+   * Add custom property to DOCX file (when custom.xml already exists)
+   */
+  async addCustomPropertyToExisting(docxBuffer: ArrayBuffer, templateId: string): Promise<ArrayBuffer> {
+    const AdmZip = require('adm-zip');
+    
+    // Extract ZIP contents
+    const zip = new AdmZip(Buffer.from(docxBuffer));
+    
+    // Check if docProps/custom.xml exists
+    const customXmlEntry = zip.getEntry('docProps/custom.xml');
+    
+    if (!customXmlEntry) {
+      throw new Error('custom.xml does not exist - use method for creating new custom.xml');
+    }
+
+    // Parse existing custom.xml
+    let customXmlContent = customXmlEntry.getData().toString('utf8');
+    
+    // Find highest existing PID to determine next available
+    let nextPid = 2; // Default starting PID
+    const pidMatches = customXmlContent.match(/pid="(\d+)"/g);
+    if (pidMatches) {
+      const pids = pidMatches.map((match: string) => parseInt(match.match(/\d+/)![0]));
+      nextPid = Math.max(...pids) + 1;
+    }
+    
+    // Create new property XML (compact format without redundant whitespace)
+    const newProperty = `<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="${nextPid}" name="SharedoTemplateId__0"><vt:lpwstr>${templateId}</vt:lpwstr></property>`;
+    
+    // Insert new property before closing </Properties>
+    customXmlContent = customXmlContent.replace('</Properties>', `    ${newProperty}\n</Properties>`);
+    
+    // Update the ZIP with modified custom.xml
+    zip.updateFile('docProps/custom.xml', Buffer.from(customXmlContent, 'utf8'));
+    
+    // Return modified DOCX as ArrayBuffer
+    return zip.toBuffer();
+  }
+
+  /**
+   * Create custom property for DOCX file (when custom.xml does not exist)
+   */
+  async addCustomPropertyToNew(docxBuffer: ArrayBuffer, templateId: string): Promise<ArrayBuffer> {
+    const AdmZip = require('adm-zip');
+    
+    // Extract ZIP contents
+    const zip = new AdmZip(Buffer.from(docxBuffer));
+    
+    // Check if docProps/custom.xml already exists
+    const customXmlEntry = zip.getEntry('docProps/custom.xml');
+    
+    if (customXmlEntry) {
+      throw new Error('custom.xml already exists - use method for modifying existing custom.xml');
+    }
+
+    // Create new custom.xml content with our template ID property (clean UTF-8, no BOM)
+    const customXmlContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+    <property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="SharedoTemplateId__0"><vt:lpwstr>${templateId}</vt:lpwstr></property>
+</Properties>`;
+
+    // Add the new custom.xml file to the ZIP
+    zip.addFile('docProps/custom.xml', Buffer.from(customXmlContent, 'utf8'));
+    
+    // Step 3: Update [Content_Types].xml to register the custom.xml file
+    const contentTypesEntry = zip.getEntry('[Content_Types].xml');
+    
+    if (!contentTypesEntry) {
+      // Create [Content_Types].xml if it doesn't exist (very unusual but possible)
+      const contentTypesContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+    <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+    <Default Extension="xml" ContentType="application/xml"/>
+    <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+    <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+    <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+    <Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/>
+</Types>`;
+      zip.addFile('[Content_Types].xml', Buffer.from(contentTypesContent, 'utf8'));
+    } else {
+      // Modify existing [Content_Types].xml
+      let contentTypesContent = contentTypesEntry.getData().toString('utf8');
+      
+      // Check if custom.xml content type is already registered
+      if (!contentTypesContent.includes('docProps/custom.xml')) {
+        // Add the custom.xml content type before closing </Types>
+        const customContentType = '<Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/>';
+        contentTypesContent = contentTypesContent.replace('</Types>', `    ${customContentType}\n</Types>`);
+        
+        // Update the ZIP with modified [Content_Types].xml
+        zip.updateFile('[Content_Types].xml', Buffer.from(contentTypesContent, 'utf8'));
+      }
+    }
+    
+    // Step 4: Update _rels/.rels to add relationship for custom.xml
+    const relsEntry = zip.getEntry('_rels/.rels');
+    
+    if (!relsEntry) {
+      // Create _rels/.rels if it doesn't exist (very unusual but possible)
+      const relsContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+    <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+    <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+    <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" Target="docProps/custom.xml"/>
+</Relationships>`;
+      zip.addFile('_rels/.rels', Buffer.from(relsContent, 'utf8'));
+    } else {
+      // Modify existing _rels/.rels
+      let relsContent = relsEntry.getData().toString('utf8');
+      
+      // Check if custom properties relationship already exists
+      if (!relsContent.includes('custom-properties')) {
+        // Find the highest existing rId to determine next available
+        let nextRid = 1;
+        const ridMatches = relsContent.match(/Id="rId(\d+)"/g);
+        if (ridMatches) {
+          const rids = ridMatches.map((match: string) => parseInt(match.match(/\d+/)![0]));
+          nextRid = Math.max(...rids) + 1;
+        }
+        
+        // Add the custom properties relationship before closing </Relationships>
+        const customRelationship = `<Relationship Id="rId${nextRid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" Target="docProps/custom.xml"/>`;
+        relsContent = relsContent.replace('</Relationships>', `    ${customRelationship}\n</Relationships>`);
+        
+        // Update the ZIP with modified _rels/.rels
+        zip.updateFile('_rels/.rels', Buffer.from(relsContent, 'utf8'));
+      }
+    }
+    
+    // Return modified DOCX as ArrayBuffer
+    return zip.toBuffer();
+  }
+
+  /**
    * Convert document workflow
    */
-  async convertDocumentWorkflow(docid: string): Promise<{
+  async convertDocument(docid: string): Promise<{
     docid: string;
     convertedFilePath: string;
   }> {
     // Find template
-    const template = await this.getTemplateByDocId(docid);
-    if (!template) {
-      throw new Error(`Template with docid '${docid}' not found`);
+    const registryEntry = await this.getRegistryEntriesByDocId(docid);
+    if (!registryEntry) {
+      throw new Error(`Template with docid '${docid}' not found - BUMBACHA`);
     }
 
     // Download original document
-    const originalBuffer = await this.downloadFile('uploads', docid);
+    const originalBuffer = await this.retrieveFile('uploads', docid);
 
     // Convert document
-    const convertedBuffer = await this.convertDocument(originalBuffer, docid);
+    const convertedBuffer = await this.doConversion(originalBuffer, docid);
 
     // Generate converted filename
     const originalFileName = docid.replace(/\.[^/.]+$/, ''); // Remove extension
     const convertedFileName = `${originalFileName}.docx`;
 
     // Upload converted document
-    const convertedDocPath = await this.uploadFile('conversions', convertedFileName, convertedBuffer);
+    const convertedDocPath = await this.saveFile('conversions', convertedFileName, convertedBuffer);
 
     // Update template record
-    await this.updateTemplateConvertedFilePath(docid, convertedDocPath);
+    await this.updateConvertedFilePath(docid, convertedDocPath);
 
     return {
       docid: docid,
@@ -244,7 +398,7 @@ export class DocAnalyserService {
   /**
    * Upsert template record
    */
-  async upsertTemplate(template: TemplateRow, batchId: string): Promise<TemplateRow> {
+  async upsertRegistryEntry(template: RegistryEntry, batchId: string): Promise<RegistryEntry> {
     const client = await this.pool.connect();
 
     try {
@@ -286,7 +440,7 @@ export class DocAnalyserService {
       ];
 
       const result = await client.query(query, values);
-      return result.rows[0] as TemplateRow;
+      return result.rows[0] as RegistryEntry;
 
     } catch(error) {
       const errorMessage = (error instanceof Error) ? error.message : String(error);
@@ -300,13 +454,13 @@ export class DocAnalyserService {
   /**
    * Process upload workflow: extract ZIP, upload files, parse CSV, upsert templates
    */
-  async processUploadWorkflow(
+  async upload(
     zipBuffer: Buffer, 
     csvFileName: string
   ): Promise<{
     batchId: string;
     uploadedFiles: string[];
-    upsertedTemplates: TemplateRow[];
+    registryEntries: RegistryEntry[];
     csvFile: { fileName: string; storagePath: string };
   }> {
     const AdmZip = require('adm-zip');
@@ -338,7 +492,7 @@ export class DocAnalyserService {
         throw new Error(`Failed to read file: ${fileName}`);
       }
 
-      return await this.uploadFile('uploads', fileName, fileBuffer);
+      return await this.saveFile('uploads', fileName, fileBuffer);
     });
 
     const uploadedFiles = await Promise.all(uploadPromises);
@@ -349,19 +503,19 @@ export class DocAnalyserService {
       throw new Error('Failed to read CSV file from ZIP');
     }
 
-    const csvStoragePath = await this.uploadFile('uploads', csvFileName, csvBuffer);
+    const csvStoragePath = await this.saveFile('uploads', csvFileName, csvBuffer);
     // Create batch record
     const batchId = await this.createBatch(csvStoragePath);
 
     // Parse CSV file
-    const csvRows: TemplateRow[] = [];
+    const csvRows: RegistryEntry[] = [];
     const csvStream = Readable.from(csvBuffer.toString());
 
     await new Promise<void>((resolve, reject) => {
       csvStream
         .pipe(csv())
         .on('data', (row: any) => {
-          const templateRow: TemplateRow = {
+          const registryEntry: RegistryEntry = {
             template_type: row.template_type || row['Template Type'],
             system_name: row.system_name || row['System Name'],
             name: row.name || row['Name'],
@@ -379,8 +533,8 @@ export class DocAnalyserService {
           };
 
           // Only add rows with required fields
-          if (templateRow.docid && templateRow.name) {
-            csvRows.push(templateRow);
+          if (registryEntry.docid && registryEntry.name) {
+            csvRows.push(registryEntry);
           }
         })
         .on('end', resolve)
@@ -392,17 +546,17 @@ export class DocAnalyserService {
     }
 
     // Upsert template records
-    const upsertedTemplates: TemplateRow[] = [];
+    const registryEntries: RegistryEntry[] = [];
 
     for (const row of csvRows) {
-      const upsertedTemplate = await this.upsertTemplate(row, batchId);
-      upsertedTemplates.push(upsertedTemplate);
+      const entry = await this.upsertRegistryEntry(row, batchId);
+      registryEntries.push(entry);
     }
 
     return {
       batchId,
       uploadedFiles,
-      upsertedTemplates,
+      registryEntries,
       csvFile: {
         fileName: csvFileName,
         storagePath: csvStoragePath
@@ -415,7 +569,7 @@ export class DocAnalyserService {
    */
   async deployToShareDo(docid: string, templateFolder: string): Promise<{ id: string }> {
     // Get template data from database
-    const template = await this.getTemplateByDocId(docid);
+    const template = await this.getRegistryEntriesByDocId(docid);
     if (!template) {
       throw new Error(`Template with docid '${docid}' not found`);
     }
@@ -450,7 +604,13 @@ export class DocAnalyserService {
     }
 
     // Download the converted file from Supabase storage
-    const convertedFileBuffer = await this.downloadFile('conversions', template.converted_file_path);
+    const convertedFileBuffer = await this.retrieveFile('conversions', template.converted_file_path);
+    
+    // Add custom property to the DOCX file with the template system name
+    const modifiedFileBuffer = await this.addCustomPropertyToDocx(
+      convertedFileBuffer, 
+      template.system_name!
+    );
     
     // Extract filename from the converted file path
     const fileName = template.converted_file_path;
@@ -460,7 +620,7 @@ export class DocAnalyserService {
     let shareDoDownloadUrl: string;
     try {
       const uploadResult = await shareDoService.uploadDocument(
-        Buffer.from(convertedFileBuffer), 
+        Buffer.from(modifiedFileBuffer), 
         fileName, 
         templateFolder
       );
@@ -476,7 +636,7 @@ export class DocAnalyserService {
 
       
       // Update the template record with ShareDo file information
-      await this.updateTemplateShareDoInfo(docid, shareDoPathId, shareDoDownloadUrl);
+      await this.updateShareDoDetails(docid, shareDoPathId, shareDoDownloadUrl);
 
       // Download the file back from ShareDo and save to our storage
       // try {

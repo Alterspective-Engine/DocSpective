@@ -1,59 +1,38 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import { shareDoService } from '../../services/ShareDoService';
 import { CreateTemplateRequest } from '../../types/createTemplateRequest';
 
 export default async function templatesRoutes(fastify: FastifyInstance) {
 
-  // Get templates in folder endpoint
-  fastify.get('/templates/:templateFolder', {
+  // Get template types endpoint
+  fastify.get('/templates/types', {
     schema: {
       tags: ['ShareDo'],
-      summary: 'Get templates in folder',
-      description: 'Retrieve document templates from a specific folder in ShareDo repository',
-      params: {
-        type: 'object',
-        properties: {
-          templateFolder: {
-            type: 'string',
-            description: 'Name of the template folder to retrieve templates from',
-            required: []
-          },
-        },
-      },
+      summary: 'Get template types',
+      description: 'Retrieve all available document template types from ShareDo',
       response: {
         200: {
-          description: 'Templates retrieved successfully',
-          type: 'object',
-          properties: {
-            items: {
-              type: 'array',
-              description: 'List of templates and folders',
-              items: {
-                type: 'object',
-                properties: {
-                  type: { type: 'number', description: 'Item type (0 = file, 1 = folder)' },
-                  id: { type: 'string', description: 'Unique identifier' },
-                  pathId: { type: 'string', description: 'Path-based identifier' },
-                  name: { type: 'string', description: 'Display name' },
-                  title: { type: 'string', description: 'Title' },
-                  size: { type: 'number', description: 'File size in bytes (files only)' },
-                  extension: { type: 'string', description: 'File extension (files only)' },
-                  icon: { type: 'string', description: 'FontAwesome icon class' },
-                  url: { type: 'string', description: 'SharePoint URL for viewing' },
-                  downloadUrl: { type: 'string', description: 'Download URL' },
-                  lastModifiedDate: { type: 'string', format: 'date-time', description: 'Last modification date' },
-                  lastModifiedBy: { type: 'string', description: 'Last modified by user' },
-                  createdDate: { type: 'string', format: 'date-time', description: 'Creation date' },
-                  meta: { type: 'object', description: 'SharePoint metadata' }
-                }
+          description: 'Template types retrieved successfully',
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: {
+                type: 'string',
+                description: 'Human-readable name of the template type',
+                examples: ['Document - Internal', 'Document - Issued', 'Pass Through Generator']
+              },
+              systemName: {
+                type: 'string',
+                description: 'System identifier for the template type',
+                examples: ['document-internal', 'document-issued', 'core-straight-through']
               }
             },
-            repositoryUrl: { type: 'string', description: 'SharePoint repository URL' }
-          },
-          required: ['items', 'repositoryUrl']
+            required: ['name', 'systemName']
+          }
         },
         500: {
-          description: 'Failed to retrieve templates',
+          description: 'Failed to retrieve template types',
           type: 'object',
           properties: {
             error: { type: 'string', description: 'Error message' },
@@ -67,19 +46,18 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
     }
   }, async (request, reply) => {
     try {
-      const { templateFolder } = request.params as { templateFolder: string };
-      const templates = await shareDoService.getTemplates(templateFolder);
-      return templates;
+      const templateTypes = await shareDoService.getTemplateTypes();
+      return templateTypes;
     } catch (error) {
       reply.status(500).send({
-        error: 'Failed to get templates',
+        error: 'Failed to get template types',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
 
   // Create template endpoint
-  fastify.post<{ Params: { templateSystemName: string }, Body: CreateTemplateRequest }>('/templates/:templateSystemName', {
+  fastify.post<{ Params: { systemName: string }, Body: CreateTemplateRequest }>('/templates/:systemName', {
     schema: {
       tags: ['ShareDo'],
       summary: 'Create document template',
@@ -87,12 +65,12 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
       params: {
         type: 'object',
         properties: {
-          templateSystemName: {
+          systemName: {
             type: 'string',
             description: 'System name for the template (unique identifier)'
           }
         },
-        required: ['templateSystemName']
+        required: ['systemName']
       },
       body: {
         type: 'object',
@@ -249,13 +227,13 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
     }
   }, async (request, reply) => {
     try {
-      const { templateSystemName } = request.params;
+      const { systemName } = request.params;
       const templateData = request.body;
 
       // Ensure systemName matches the URL parameter
-      templateData.systemName = templateSystemName;
+      templateData.systemName = systemName;
 
-      const result = await shareDoService.createTemplate(templateSystemName, templateData);
+      const result = await shareDoService.createTemplate(systemName, templateData);
       return result;
     } catch (error) {
       fastify.log.error('Template creation failed: %s', error instanceof Error ? error.message : error);
@@ -269,6 +247,79 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
 
       return reply.status(500).send({
         error: 'Failed to create template',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Delete template endpoint
+  fastify.delete('/templates/:systemName', {
+    schema: {
+      tags: ['ShareDo'],
+      summary: 'Delete a ShareDo template',
+      description: 'Delete a document template from ShareDo by system name',
+      params: {
+        type: 'object',
+        properties: {
+          systemName: {
+            type: 'string',
+            description: 'System name of the template to delete'
+          }
+        },
+        required: ['systemName']
+      },
+      response: {
+        200: {
+          description: 'Template deletion status',
+          type: 'object',
+          properties: {
+            itemDeleted: {
+              type: 'boolean',
+              description: 'Whether the template was successfully deleted'
+            }
+          }
+        },
+        404: {
+          description: 'Template not found',
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+            message: { type: 'string' }
+          }
+        },
+        500: {
+          description: 'Server error',
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request: FastifyRequest<{ Params: { systemName: string } }>, reply) => {
+    try {
+      const { systemName } = request.params;
+
+      fastify.log.info(`[DELETE Template] Attempting to delete template: ${systemName}`);
+      
+      const result = await shareDoService.deleteTemplate(systemName);
+      
+      fastify.log.info(`[DELETE Template] ShareDo response: ${JSON.stringify(result)}`);
+      
+      return result;
+    } catch (error) {
+      fastify.log.error('Template deletion failed: %s', error instanceof Error ? error.message : error);
+
+      if (error instanceof Error && error.message.includes('404')) {
+        return reply.status(404).send({
+          error: 'Template not found',
+          message: error.message
+        });
+      }
+
+      return reply.status(500).send({
+        error: 'Failed to delete template',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
     }

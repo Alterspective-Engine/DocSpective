@@ -206,8 +206,8 @@ async function registerRoutes() {
   const sharedoMod = await import('./routes/sharedo/index');
   fastify.register(sharedoMod.default || sharedoMod, { prefix: '/api/sharedo' });
 
-  const analyserMod = await import('./routes/analyser/index');
-  fastify.register(analyserMod.default || analyserMod, { prefix: '/api/analyser' });
+  const registryMod = await import('./routes/registry');
+  fastify.register(registryMod.default || registryMod, { prefix: '/api' });
 }
 
 // Start server

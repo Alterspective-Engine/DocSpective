@@ -1,4 +1,4 @@
-export interface TemplateRow {
+export interface RegistryEntry {
   id?: string;
   template_type?: string;
   system_name?: string;

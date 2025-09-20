@@ -50,3 +50,27 @@ secrets/
 *.pem
 *.key
 !*.key.example
+
+# dotnet specific
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.ncrunch*
+*.vs/
+*.dbmdl
+*.pdb
+*.cache
+*.ilk
+*.log
+*.tlog/
+*.lastbuildstate
+*.rsp
+*.csproj.user
+*.vbproj.user
+*.dbproj.user
+*.dbproj.schemaview
+*.dbproj.schemaview.user
+*.dbmdl
